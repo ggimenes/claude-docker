@@ -74,13 +74,46 @@ if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ -n "$MSYSTEM" 
     echo "✓ Disabled path conversion for Docker command"
 fi
 
+# Ensure npm cache directory exists
+mkdir -p "$HOME/.claude-docker/npm-cache"
+
 # Run Claude Flow directly instead of the startup script
 docker run -it --rm \
     -v "$CURRENT_DIR:/workspace" \
     -v "$HOME/.claude-docker/claude-home:/home/claude-user/.claude:rw" \
     -v "$HOME/.claude-docker/ssh:/home/claude-user/.ssh:rw" \
     -v "$HOME/.claude-docker/scripts:/home/claude-user/scripts:rw" \
+    -v "$HOME/.claude-docker/npm-cache:/home/claude-user/.npm:rw" \
     -e CLAUDE_CONFIG_DIR="/home/claude-user/.claude" \
+    -e NPM_CONFIG_CACHE="/home/claude-user/.npm" \
     --workdir /workspace \
     --name "claude-flow-$(basename "$CURRENT_DIR")-$$" \
-    claude-docker:latest claude-flow "$@"
+    --entrypoint="" \
+    claude-docker:latest bash -c '
+        echo "🌊 Claude Flow Docker Container Ready!"
+        echo "📁 Working directory: $(pwd)"
+        echo "🔧 Node.js version: $(node --version)"
+        echo "📦 npm version: $(npm --version)"
+        echo ""
+        
+        if [ $# -eq 0 ]; then
+            # No arguments provided - start interactive session
+            echo "🌊 Starting interactive Claude Flow session..."
+            echo "💡 Run: npx claude-flow@alpha --help"
+            echo "💡 Run: npx claude-flow@alpha init"  
+            echo "💡 Run: npx claude-flow@alpha hive-mind wizard"
+            echo "💡 Type '\''exit'\'' to leave the container"
+            echo ""
+        else
+            # Arguments provided - run command first
+            echo "🚀 Running: npx claude-flow@alpha $*"
+            echo ""
+            npx claude-flow@alpha "$@" || echo "⚠️  Command failed or was canceled"
+            echo ""
+            echo "🌊 Command finished. You can run more commands or type '\''exit'\'' to leave."
+            echo ""
+        fi
+        
+        # Always start interactive bash session
+        exec bash
+    ' -- "$@"
