@@ -41,6 +41,19 @@ done
 
 # Get the absolute path of the current directory
 CURRENT_DIR=$(pwd)
+
+# Fix for Git Bash on Windows - convert Windows paths to Unix format for Docker
+if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ -n "$MSYSTEM" ]]; then
+    # Convert Windows-style paths to Unix format
+    if command -v cygpath >/dev/null 2>&1; then
+        CURRENT_DIR=$(cygpath -u "$CURRENT_DIR")
+    else
+        # Fallback: manually convert C:\ to /c/ format
+        CURRENT_DIR=$(echo "$CURRENT_DIR" | sed 's|^\([A-Za-z]\):|/\L\1|' | sed 's|\\|/|g')
+    fi
+    echo "✓ Converted path for Git Bash on Windows: $CURRENT_DIR"
+fi
+
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
@@ -104,10 +117,8 @@ if [ -n "$NO_CACHE" ] && [ "$NEED_REBUILD" = false ]; then
 fi
 
 if [ "$NEED_REBUILD" = true ]; then
-    # Copy authentication files to build context
-    if [ -f "$HOME/.claude.json" ]; then
-        cp "$HOME/.claude.json" "$PROJECT_ROOT/.claude.json"
-    fi
+    # Copy authentication files to build context (no longer needed)
+    # Authentication is now handled at runtime via volume mounts
     
     # Get git config from host
     GIT_USER_NAME=$(git config --global --get user.name 2>/dev/null || echo "")
@@ -124,9 +135,6 @@ if [ "$NEED_REBUILD" = true ]; then
     fi
     
     eval "docker build $NO_CACHE $BUILD_ARGS -t claude-docker:latest \"$PROJECT_ROOT\""
-    
-    # Clean up copied auth files
-    rm -f "$PROJECT_ROOT/.claude.json"
 fi
 
 # Ensure the claude-home and ssh directories exist
@@ -134,9 +142,46 @@ mkdir -p "$HOME/.claude-docker/claude-home"
 mkdir -p "$HOME/.claude-docker/ssh"
 
 # Copy authentication files to persistent claude-home if they don't exist
+# Support multiple Claude authentication file formats
+COPIED_AUTH=false
+
+# Check for .credentials.json (newer format)
 if [ -f "$HOME/.claude/.credentials.json" ] && [ ! -f "$HOME/.claude-docker/claude-home/.credentials.json" ]; then
-    echo "✓ Copying Claude authentication to persistent directory"
+    echo "✓ Copying Claude .credentials.json to persistent directory"
     cp "$HOME/.claude/.credentials.json" "$HOME/.claude-docker/claude-home/.credentials.json"
+    COPIED_AUTH=true
+fi
+
+# Check for .claude.json (older format) 
+if [ -f "$HOME/.claude.json" ] && [ ! -f "$HOME/.claude-docker/claude-home/.claude.json" ]; then
+    echo "✓ Copying Claude .claude.json to persistent directory"
+    cp "$HOME/.claude.json" "$HOME/.claude-docker/claude-home/.claude.json"
+    COPIED_AUTH=true
+fi
+
+# Check for other authentication files in ~/.claude/
+if [ -d "$HOME/.claude" ]; then
+    for auth_file in "$HOME/.claude"/*.json; do
+        if [ -f "$auth_file" ]; then
+            filename=$(basename "$auth_file")
+            if [ ! -f "$HOME/.claude-docker/claude-home/$filename" ]; then
+                echo "✓ Copying Claude $filename to persistent directory"
+                cp "$auth_file" "$HOME/.claude-docker/claude-home/$filename"
+                COPIED_AUTH=true
+            fi
+        fi
+    done
+fi
+
+# Provide authentication status feedback
+if [ "$COPIED_AUTH" = true ]; then
+    echo "✓ Claude authentication files copied successfully"
+elif [ -f "$HOME/.claude-docker/claude-home/.credentials.json" ] || [ -f "$HOME/.claude-docker/claude-home/.claude.json" ]; then
+    echo "✓ Found existing Claude authentication in persistent directory"
+else
+    echo "⚠️  No Claude authentication found!"
+    echo "   Please run 'claude auth login' on your host system first"
+    echo "   Then run claude-docker again to copy authentication files"
 fi
 
 # Log information about persistent Claude home directory
@@ -262,6 +307,13 @@ fi
 
 # Run Claude Code in Docker
 echo "Starting Claude Code in Docker..."
+
+# Fix for Git Bash on Windows - prevent path conversion for Docker command
+if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ -n "$MSYSTEM" ]]; then
+    export MSYS_NO_PATHCONV=1
+    echo "✓ Disabled path conversion for Docker command"
+fi
+
 docker run -it --rm \
     $DOCKER_OPTS \
     -v "$CURRENT_DIR:/workspace" \
@@ -271,6 +323,7 @@ docker run -it --rm \
     $MOUNT_ARGS \
     $ENV_ARGS \
     -e CLAUDE_CONTINUE_FLAG="$CONTINUE_FLAG" \
+    -e CLAUDE_CONFIG_DIR="/home/claude-user/.claude" \
     --workdir /workspace \
     --name "claude-docker-$(basename "$CURRENT_DIR")-$$" \
     claude-docker:latest "${ARGS[@]}"

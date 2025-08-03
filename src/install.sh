@@ -39,27 +39,28 @@ else
     echo "✓ Claude-docker alias already exists in .zshrc"
 fi
 
-# Add scripts directory to PATH and PYTHONPATH in .bashrc
-if grep -q "/.claude-docker/scripts" "$HOME/.bashrc"; then
-    echo "✓ Scripts directory already in .bashrc PATH/PYTHONPATH"
+# Set default script paths in .env if not already configured
+SCRIPTS_DIR="$HOME/.claude-docker/scripts"
+if [ -f "$PROJECT_ROOT/.env" ]; then
+    # Check if script paths are already configured in .env
+    if ! grep -q "CLAUDE_SCRIPTS_PATH=" "$PROJECT_ROOT/.env"; then
+        echo "" >> "$PROJECT_ROOT/.env"
+        echo "# Claude Docker scripts path (automatically set by installer)" >> "$PROJECT_ROOT/.env"
+        echo "CLAUDE_SCRIPTS_PATH=\"$SCRIPTS_DIR\"" >> "$PROJECT_ROOT/.env"
+        echo "CLAUDE_PYTHON_PATH=\"$SCRIPTS_DIR\"" >> "$PROJECT_ROOT/.env"
+        echo "✓ Added script paths to .env file (safer than modifying global PATH)"
+    else
+        echo "✓ Script paths already configured in .env file"
+    fi
 else
-    echo "" >> "$HOME/.bashrc"
-    echo "# Claude Docker scripts directory" >> "$HOME/.bashrc"
-    echo "export PATH=\"\$HOME/.claude-docker/scripts:\$PATH\"" >> "$HOME/.bashrc"
-    echo "export PYTHONPATH=\"\$HOME/.claude-docker/scripts:\$PYTHONPATH\"" >> "$HOME/.bashrc"
-    echo "✓ Added scripts directory to .bashrc PATH/PYTHONPATH"
+    echo "⚠️  No .env file found - script paths not configured"
+    echo "   Run this script again after creating .env file"
 fi
 
-# Add scripts directory to PATH and PYTHONPATH in .zshrc
-if grep -q "/.claude-docker/scripts" "$HOME/.zshrc"; then
-    echo "✓ Scripts directory already in .zshrc PATH/PYTHONPATH"
-else
-    echo "" >> "$HOME/.zshrc"
-    echo "# Claude Docker scripts directory" >> "$HOME/.zshrc"
-    echo "export PATH=\"\$HOME/.claude-docker/scripts:\$PATH\"" >> "$HOME/.zshrc"
-    echo "export PYTHONPATH=\"\$HOME/.claude-docker/scripts:\$PYTHONPATH\"" >> "$HOME/.zshrc"
-    echo "✓ Added scripts directory to .zshrc PATH/PYTHONPATH"
-fi
+# Optional: Remove old PATH modifications from shell files (commented out by default)
+# Uncomment these lines if you want to clean up previous installations
+# sed -i '/# Claude Docker scripts directory/,+2d' "$HOME/.bashrc" 2>/dev/null || true
+# sed -i '/# Claude Docker scripts directory/,+2d' "$HOME/.zshrc" 2>/dev/null || true
 
 # Make scripts executable
 chmod +x "$PROJECT_ROOT/src/claude-docker.sh"

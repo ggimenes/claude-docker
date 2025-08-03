@@ -4,7 +4,7 @@
 # Lines starting with # are comments and will be ignored
 
 # Serena - Coding agent toolkit
-claude mcp add -s user serena -- uvx --from git+https://github.com/oraios/serena serena-mcp-server --context ide-assistant
+# claude mcp add -s user serena -- uvx --from git+https://github.com/oraios/serena serena-mcp-server --context ide-assistant
 
 # Context7 - Up-to-date documentation and code examples from source
 claude mcp add -s user --transport sse context7 https://mcp.context7.com/sse
