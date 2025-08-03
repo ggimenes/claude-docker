@@ -36,6 +36,7 @@ commit_diff_summary.txt
 commit_diff_summary.txt
 task_log.md
 
+
 # Claude Flow generated files
 .claude/settings.local.json
 .mcp.json
