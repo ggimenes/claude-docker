@@ -26,20 +26,27 @@ RUN if [ -n "$SYSTEM_PACKAGES" ]; then \
     echo "No additional system packages specified"; \
     fi
 
-# Create a non-root user with unique UID/GID
+# Create a non-root user with flexible UID/GID that can match host user
 ARG USER_UID=1001
 ARG USER_GID=1001
 RUN groupadd -g $USER_GID claude-user && \
     useradd -m -s /bin/bash -u $USER_UID -g claude-user claude-user && \
-    echo "claude-user ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+    echo "claude-user ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
+    echo "Defaults env_keep += \"HOME\"" >> /etc/sudoers
 
 # Create app directory
 WORKDIR /app
 
-# Install Claude Code and Claude Flow globally
+# Install Claude Code and Claude Flow globally with proper permissions
 RUN npm install -g @anthropic-ai/claude-code
 RUN npm install -g claude-flow@alpha
 # RUN npm install -g claude-flow@2.0.0-alpha.65
+
+# Fix NPM global package permissions for claude-user
+RUN chown -R claude-user:claude-user /usr/local/lib/node_modules \
+    && chmod -R 755 /usr/local/lib/node_modules \
+    && chown claude-user:claude-user /usr/local/bin/claude* \
+    && chmod 755 /usr/local/bin/claude*
 
 
 
@@ -49,9 +56,10 @@ ENV PATH="/usr/local/bin:${PATH}"
 # Create directories for configuration
 RUN mkdir -p /app/.claude /home/claude-user/.claude
 
-# Copy startup script
+# Copy startup and permission scripts
 COPY src/startup.sh /app/
-RUN chmod +x /app/startup.sh
+COPY src/fix-runtime-permissions.sh /app/
+RUN chmod +x /app/startup.sh /app/fix-runtime-permissions.sh
 
 # Copy .claude directory for runtime use
 COPY .claude /app/.claude

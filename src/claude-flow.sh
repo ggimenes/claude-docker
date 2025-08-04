@@ -79,7 +79,6 @@ fi
 
 # Run Claude Flow directly instead of the startup script
 docker run -it --rm \
-    --user root \
     -v "$CURRENT_DIR:/workspace" \
     -v "$HOME/.claude-docker/claude-home:/home/claude-user/.claude:rw" \
     -v "$HOME/.claude-docker/ssh:/home/claude-user/.ssh:rw" \

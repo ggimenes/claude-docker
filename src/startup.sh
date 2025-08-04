@@ -34,6 +34,14 @@ else
     echo "WARNING: No .env file found in image."
 fi
 
+# Run runtime permission checks to ensure claude-user can write to all necessary locations
+echo "🔧 Running runtime permission checks..."
+if [ -f "/app/fix-runtime-permissions.sh" ]; then
+    source /app/fix-runtime-permissions.sh
+else
+    echo "⚠️  Runtime permission script not found, proceeding with default permissions"
+fi
+
 # Check for existing authentication - support multiple formats
 AUTH_FOUND=false
 AUTH_FILES=""
