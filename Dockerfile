@@ -1,7 +1,7 @@
 # ABOUTME: Docker image for Claude Code with Twilio MCP server
 # ABOUTME: Provides autonomous Claude Code environment with SMS notifications
 
-FROM node:20
+FROM node:23
 
 # Install required system dependencies
 RUN apt-get update && apt-get install -y \
@@ -36,8 +36,12 @@ RUN groupadd -g $USER_GID claude-user && \
 # Create app directory
 WORKDIR /app
 
-# Install Claude Code globally
+# Install Claude Code and Claude Flow globally
 RUN npm install -g @anthropic-ai/claude-code
+RUN npm install -g claude-flow@alpha
+# RUN npm install -g claude-flow@2.0.0-alpha.65
+
+
 
 # Ensure npm global bin is in PATH
 ENV PATH="/usr/local/bin:${PATH}"
@@ -104,7 +108,8 @@ RUN if [ -n "$GIT_USER_NAME" ] && [ -n "$GIT_USER_EMAIL" ]; then \
     echo "Run 'git config --global user.name \"Your Name\"' and 'git config --global user.email \"you@example.com\"' on host first"; \
     fi
 
-RUN npx -y claude-flow@alpha init
+# Claude flow will be available globally - no need for npx - init should be don in the desired directory
+# RUN claude-flow --help
 
 # Set working directory to mounted volume
 WORKDIR /workspace

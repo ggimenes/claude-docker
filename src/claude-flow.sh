@@ -75,17 +75,16 @@ if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ -n "$MSYSTEM" 
 fi
 
 # Ensure npm cache directory exists
-mkdir -p "$HOME/.claude-docker/npm-cache"
+# mkdir -p "$HOME/.claude-docker/npm-cache"
 
 # Run Claude Flow directly instead of the startup script
 docker run -it --rm \
+    --user root \
     -v "$CURRENT_DIR:/workspace" \
     -v "$HOME/.claude-docker/claude-home:/home/claude-user/.claude:rw" \
     -v "$HOME/.claude-docker/ssh:/home/claude-user/.ssh:rw" \
     -v "$HOME/.claude-docker/scripts:/home/claude-user/scripts:rw" \
-    -v "$HOME/.claude-docker/npm-cache:/home/claude-user/.npm:rw" \
     -e CLAUDE_CONFIG_DIR="/home/claude-user/.claude" \
-    -e NPM_CONFIG_CACHE="/home/claude-user/.npm" \
     --workdir /workspace \
     --name "claude-flow-$(basename "$CURRENT_DIR")-$$" \
     --entrypoint="" \
